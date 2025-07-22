@@ -22,6 +22,7 @@ export const createCustomer = async (
     data: CustomerCreateInput,
     navigate: (path: string) => void
 ) => {
+    const toastId = toast.loading("Creating...");
     try {
         const token = getAccessToken();
 
@@ -39,11 +40,13 @@ export const createCustomer = async (
             throw new Error("Failed to create customer");
         }
 
-        toast.success("Customer created successfully");
+        toast.success("Customer created successfully!");
         navigate("/customers");
     } catch (error: any) {
         console.error("Create customer error:", error);
         toast.error("Customer creation failed!");
+    } finally {
+        toast.dismiss(toastId);
     }
 };
 
@@ -52,6 +55,7 @@ export const updateCustomer = async (
     data: CustomerCreateInput,
     navigate: (path: string) => void
 ) => {
+    const toastId = toast.loading("Updating...");
     try {
         const token = getAccessToken();
         const response = await apiConnector(
@@ -68,11 +72,13 @@ export const updateCustomer = async (
             throw new Error("Failed to update customer");
         }
 
-        toast.success("Customer updated successfully");
+        toast.success("Customer updated successfully!");
         navigate("/customers");
     } catch (error: any) {
         console.error("Update customer error:", error);
         toast.error("Customer update failed!");
+    } finally {
+        toast.dismiss(toastId);
     }
 };
 

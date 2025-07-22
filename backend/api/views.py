@@ -60,20 +60,34 @@ class ProductView(APIView):
     def get(self, request):
         top = request.query_params.get("top", "false").lower() == "true"
         fetch_all = request.query_params.get("all", "false").lower() == "true"
+        status_filter = request.query_params.get("status", "").lower()
 
-        products = (
-            Product.objects.filter(created_by=request.user).order_by("-units_sold")[:5]
-            if top
-            else Product.objects.filter(created_by=request.user).order_by("id")
-        )
+        products = Product.objects.filter(created_by=request.user)
 
-        if top or fetch_all:
+        if status_filter == "active":
+            products = products.filter(status="active")
+        elif status_filter == "inactive":
+            products = products.filter(status="inactive")
+        elif status_filter == "low stock":
+            products = products.filter(stock__gt=0, stock__lte=10)
+        elif status_filter == "out of stock":
+            products = products.filter(stock=0)
+
+        if top:
+            products = products.order_by("-units_sold")[:5]
+            serializer = ProductSerializer(products, many=True)
+            return Response(serializer.data)
+
+        if fetch_all:
+            products = products.order_by("id")
             serializer = ProductSerializer(products, many=True)
             return Response(serializer.data)
 
         paginator = PageNumberPagination()
         paginator.page_size = 10
-        paginated_products = paginator.paginate_queryset(products, request)
+        paginated_products = paginator.paginate_queryset(
+            products.order_by("id"), request
+        )
         serializer = ProductSerializer(paginated_products, many=True)
         return paginator.get_paginated_response(serializer.data)
 
@@ -199,13 +213,17 @@ class OrderView(APIView):
         orders = Order.objects.filter(created_by=request.user).order_by("id")
 
         fetch_all = request.query_params.get("all", "false").lower() == "true"
+        status_param = request.query_params.get("status")
+
+        if status_param and status_param.lower() != "all":
+            orders = orders.filter(status=status_param.lower())
 
         if fetch_all:
             serializer = OrderSerializer(orders, many=True)
             return Response(serializer.data)
 
         paginator = PageNumberPagination()
-        paginator.page_size = 10
+        paginator.page_size = 4
         paginated_orders = paginator.paginate_queryset(orders, request)
         serializer = OrderSerializer(paginated_orders, many=True)
         return paginator.get_paginated_response(serializer.data)

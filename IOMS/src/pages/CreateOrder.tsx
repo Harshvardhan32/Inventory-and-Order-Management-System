@@ -168,6 +168,26 @@ export default function AddOrder() {
     }, [id, isEdit, reset]);
 
     const onSubmit = async (formData: FormData) => {
+        for (const item of formData.items) {
+            const product = products.find((p) => String(p.id) === item.id);
+            if (!product) {
+                toast.error(`Product with id ${item.id} not found.`);
+                return;
+            }
+
+            if (product.stock === 0) {
+                toast.error(`Product "${product.name}" is out of stock.`);
+                return;
+            }
+
+            if (item.quantity > product.stock) {
+                toast.error(
+                    `Ordered quantity for "${product.name}" exceeds available stock (${product.stock}).`
+                );
+                return;
+            }
+        }
+
         const payload = {
             ...(isEdit && id ? { id } : {}),
 
@@ -178,13 +198,10 @@ export default function AddOrder() {
 
             items: formData.items.map((item) => {
                 const product = products.find((p) => String(p.id) === item.id);
-                if (!product) {
-                    throw new Error(`Product with id ${item.id} not found`);
-                }
                 return {
                     product_id: Number(item.id),
                     quantity: item.quantity,
-                    price_at_order_time: product.price,
+                    price_at_order_time: product!.price,
                 };
             }),
         };
@@ -193,10 +210,8 @@ export default function AddOrder() {
         try {
             if (isEdit && id) {
                 await updateOrder(id, payload, navigate);
-                toast.success("Order updated!");
             } else {
                 await createOrder(payload, navigate);
-                toast.success("Order created!");
             }
         } catch (e: any) {
             console.error(

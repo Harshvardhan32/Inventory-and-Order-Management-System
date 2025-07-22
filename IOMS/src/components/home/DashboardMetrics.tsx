@@ -3,6 +3,7 @@ import { getAllProduct } from "../../services/apis/productApi";
 import { getAllOrder } from "../../services/apis/orderApi";
 import type { RevenueCard } from "../../interfaces/interface";
 import { Box, Typography } from "@mui/material";
+import { getAllCustomer } from "../../services/apis/customerApi";
 
 const DashboardMetrics = () => {
     const [revenue, setRevenue] = useState<RevenueCard[]>([]);
@@ -10,10 +11,12 @@ const DashboardMetrics = () => {
     useEffect(() => {
         const fetchMetrics = async () => {
             try {
-                const [orderResponse, productResponse] = await Promise.all([
-                    getAllOrder(1, true),
-                    getAllProduct(1, true),
-                ]);
+                const [orderResponse, productResponse, customerResponse] =
+                    await Promise.all([
+                        getAllOrder(1, true),
+                        getAllProduct(1, true),
+                        getAllCustomer(1, true),
+                    ]);
 
                 const orders = Array.isArray(orderResponse)
                     ? orderResponse
@@ -22,6 +25,10 @@ const DashboardMetrics = () => {
                 const products = Array.isArray(productResponse)
                     ? productResponse
                     : productResponse?.results ?? [];
+
+                const customers = Array.isArray(customerResponse)
+                    ? customerResponse
+                    : customerResponse?.results ?? [];
 
                 const now = new Date();
 
@@ -56,10 +63,6 @@ const DashboardMetrics = () => {
                     (product) => product.stock > 0
                 );
 
-                const uniqueCustomers = new Set(
-                    orders.map((order) => order.customer.id)
-                );
-
                 const formatted: RevenueCard[] = [
                     {
                         id: 1,
@@ -82,7 +85,7 @@ const DashboardMetrics = () => {
                     {
                         id: 4,
                         heading: "Total Customers",
-                        number: uniqueCustomers.size,
+                        number: customers.length,
                     },
                 ];
 

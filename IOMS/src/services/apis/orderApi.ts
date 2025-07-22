@@ -70,6 +70,7 @@ export const createOrder = async (
         if (![200, 201].includes(response.status)) {
             throw new Error("Something went wrong!");
         }
+        toast.success("Order created!");
         navigate("/orders");
     } catch (error: any) {
         console.error("Create order error:", error);
@@ -102,6 +103,7 @@ export const updateOrder = async (
         }
 
         result = response.data as Order;
+        toast.success("Order updated!");
         navigate("/orders");
     } catch (error: any) {
         console.error("Update order error:", error);
@@ -119,15 +121,28 @@ type PaginatedOrderResponse = {
 
 export const getAllOrder = async (
     page = 1,
-    all = false
+    all: boolean = false,
+    status?: string
 ): Promise<PaginatedOrderResponse | null> => {
     try {
         const token = getAccessToken();
         if (!token) throw new Error("No access token found");
 
-        const url = all
-            ? `${API_BASE_URL}/orders/?all=true`
-            : `${API_BASE_URL}/orders/?page=${page}`;
+        // Construct query parameters
+        const queryParams: Record<string, string> = {};
+
+        if (all) {
+            queryParams["all"] = "true";
+        } else {
+            queryParams["page"] = page.toString();
+        }
+
+        if (status && status !== "All Orders") {
+            queryParams["status"] = status.toLowerCase();
+        }
+
+        const queryString = new URLSearchParams(queryParams).toString();
+        const url = `${API_BASE_URL}/orders/?${queryString}`;
 
         const response = await apiConnector("GET", url, undefined, {
             "Content-Type": "application/json",
@@ -146,9 +161,7 @@ export const getAllOrder = async (
     }
 };
 
-export const getRecentOrders = async (
-    all = false
-): Promise<OrderResponse | null> => {
+export const getRecentOrders = async (): Promise<OrderResponse | null> => {
     try {
         const authString = localStorage.getItem("auth");
         const accessToken = authString ? JSON.parse(authString).access : null;
@@ -156,7 +169,7 @@ export const getRecentOrders = async (
 
         const response = await apiConnector(
             "GET",
-            `${API_BASE_URL}/orders/?all=${all}`,
+            `${API_BASE_URL}/orders/recent`,
             undefined,
             {
                 "Content-Type": "application/json",
@@ -175,7 +188,7 @@ export const getRecentOrders = async (
         if (error.response?.status === 401) {
             const refreshed = await refreshAccessToken();
             if (refreshed) {
-                return getRecentOrders(all);
+                return getRecentOrders();
             } else {
                 console.log("Session expired. Please login again.");
             }

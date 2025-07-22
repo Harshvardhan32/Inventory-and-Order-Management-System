@@ -11,7 +11,7 @@ const RecentOrders = () => {
         const fetchOrders = async () => {
             const toastId = toast.loading("Fetching recent orders...");
             try {
-                const response = await getRecentOrders(true);
+                const response = await getRecentOrders();
 
                 setRecentOrders(Array.isArray(response) ? response : []);
             } catch (error) {

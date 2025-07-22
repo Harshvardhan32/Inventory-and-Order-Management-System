@@ -68,7 +68,6 @@ export const signUp = async (
             { "Content-Type": "application/json" }
         );
 
-        console.log("Signup Data: ", response);
         if (response.status !== 201) {
             throw new Error("Something went wrong!");
         }

@@ -44,6 +44,7 @@ const Orders = () => {
         "Delivered",
         "Canceled",
     ];
+
     const statusColors: Record<string, { bg: string; color: string }> = {
         "All Orders": { bg: "#e3f2fd", color: "#1976d2" },
         Pending: { bg: "#fff3e0", color: "#f57c00" },
@@ -56,11 +57,10 @@ const Orders = () => {
     useEffect(() => {
         const fetchOrders = async () => {
             try {
-                const resp = await getAllOrder(page);
-
+                const resp = await getAllOrder(page, false, status);
                 if (resp) {
                     setOrders(resp.results);
-                    setTotalPages(Math.ceil(resp.count / 10));
+                    setTotalPages(Math.ceil(resp.count / 4));
                 } else {
                     setOrders([]);
                     setTotalPages(0);
@@ -73,18 +73,11 @@ const Orders = () => {
         };
 
         fetchOrders();
-    }, [page]);
+    }, [page, status]);
 
     const handlePageChange = (_: any, value: number) => {
         setSearchParams({ page: value.toString() });
     };
-
-    const filterOrdersByStatus = (list: OrderResponse[], target: string) => {
-        if (target === "All Orders") return list;
-        return list.filter((o) => o.status === target.toLowerCase());
-    };
-
-    const filtered = filterOrdersByStatus(orders, status);
 
     const formatDateShort = (iso: string) =>
         new Intl.DateTimeFormat("en-US", {
@@ -93,9 +86,7 @@ const Orders = () => {
             day: "numeric",
         }).format(new Date(iso));
 
-    const forTitleCase = (s: string) => {
-        return s.charAt(0).toUpperCase() + s.slice(1);
-    };
+    const forTitleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
     return (
         <Box
@@ -137,6 +128,7 @@ const Orders = () => {
                 </Link>
             </Box>
 
+            {/* Status Filter */}
             <Box
                 sx={{
                     maxWidth: "80%",
@@ -170,13 +162,17 @@ const Orders = () => {
                                 color: statusColors[opt].color,
                             },
                         }}
-                        onClick={() => setStatus(opt)}
+                        onClick={() => {
+                            setStatus(opt);
+                            setSearchParams({ page: "1" }); // Reset to page 1
+                        }}
                     >
                         {opt}
                     </Button>
                 ))}
             </Box>
 
+            {/* Orders Table */}
             <Box
                 sx={{
                     maxWidth: "80%",
@@ -209,8 +205,8 @@ const Orders = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {filtered.length > 0 ? (
-                                filtered.map((order) => (
+                            {orders.length > 0 ? (
+                                orders.map((order) => (
                                     <StyledTableRow key={order.id}>
                                         <StyledTableCell
                                             sx={{
@@ -251,10 +247,10 @@ const Orders = () => {
                                                 {forTitleCase(order.status)}
                                             </Box>
                                         </StyledTableCell>
-
                                         <StyledTableCell align="right">
                                             {order.items.reduce(
-                                                (s, i) => s + i.quantity,
+                                                (sum, item) =>
+                                                    sum + item.quantity,
                                                 0
                                             )}
                                         </StyledTableCell>
@@ -264,12 +260,12 @@ const Orders = () => {
                                         >
                                             {order.items
                                                 .reduce(
-                                                    (s, i) =>
-                                                        s +
+                                                    (sum, item) =>
+                                                        sum +
                                                         parseFloat(
-                                                            i.price_at_order_time
+                                                            item.price_at_order_time
                                                         ) *
-                                                            i.quantity,
+                                                            item.quantity,
                                                     0
                                                 )
                                                 .toLocaleString("en-US", {
@@ -317,23 +313,26 @@ const Orders = () => {
                 </TableContainer>
             </Box>
 
-            <Box
-                sx={{
-                    maxWidth: "80%",
-                    mx: "auto",
-                    display: "flex",
-                    justifyContent: "center",
-                    mt: 2,
-                }}
-            >
-                <Pagination
-                    count={totalPages}
-                    page={page}
-                    onChange={handlePageChange}
-                    color="primary"
-                    shape="rounded"
-                />
-            </Box>
+            {/* Pagination */}
+            {orders.length > 0 && (
+                <Box
+                    sx={{
+                        maxWidth: "80%",
+                        mx: "auto",
+                        display: "flex",
+                        justifyContent: "center",
+                        mt: 2,
+                    }}
+                >
+                    <Pagination
+                        count={totalPages}
+                        page={page}
+                        onChange={handlePageChange}
+                        color="primary"
+                        shape="rounded"
+                    />
+                </Box>
+            )}
         </Box>
     );
 };

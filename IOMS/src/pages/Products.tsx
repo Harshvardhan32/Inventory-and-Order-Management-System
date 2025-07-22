@@ -40,21 +40,23 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
 
 const Products = () => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const [totalPages, setTotalPages] = useState(1);
-    const [status, setStatus] = useState("All Products");
-    const [products, setProducts] = useState<Product[]>([]);
-    const [id, setId] = useState<number>();
-    const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
     const page = parseInt(searchParams.get("page") || "1", 10);
 
     const statusOptions = [
-        "All Products",
-        "Active",
-        "Inactive",
-        "Low Stock",
-        "Out of Stock",
+        { label: "All Products", value: "" },
+        { label: "Active", value: "active" },
+        { label: "Inactive", value: "inactive" },
+        { label: "Low Stock", value: "low stock" },
+        { label: "Out of Stock", value: "out of stock" },
     ];
+
+    const [status, setStatus] = useState("");
+
+    const [totalPages, setTotalPages] = useState(1);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [id, setId] = useState<number>();
+    const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
     const statusColors: Record<string, { bg: string; color: string }> = {
         "All Products": { bg: "#e3f2fd", color: "#1976d2" },
@@ -64,10 +66,13 @@ const Products = () => {
         "Out of Stock": { bg: "#ffebee", color: "#c62828" },
     };
 
-    const fetchProducts = async (pageNumber: number) => {
-        const toastId = toast.loading("Loading...");
+    const fetchProducts = async (pageNumber: number, statusFilter: string) => {
         try {
-            const response = await getAllProduct(pageNumber);
+            const response = await getAllProduct(
+                pageNumber,
+                false,
+                statusFilter || undefined
+            );
             if (response) {
                 setProducts(response.results);
                 const totalCount = response.count;
@@ -76,20 +81,23 @@ const Products = () => {
         } catch (error) {
             console.error("Error fetching products:", error);
             toast.error("Failed to load products");
-        } finally {
-            toast.dismiss(toastId);
         }
     };
 
     useEffect(() => {
-        fetchProducts(page);
-    }, [page]);
+        fetchProducts(page, status);
+    }, [page, status]);
 
     const handlePageChange = (
         _event: React.ChangeEvent<unknown>,
         value: number
     ) => {
         setSearchParams({ page: value.toString() });
+    };
+
+    const handleStatusChange = (selectedValue: string) => {
+        setStatus(selectedValue);
+        setSearchParams({ page: "1" });
     };
 
     const formatNumber = (value: number): string =>
@@ -104,39 +112,17 @@ const Products = () => {
         return stock.toString();
     };
 
-    const filterProductsByStatus = (products: Product[], filter: string) => {
-        switch (filter) {
-            case "Active":
-                return products.filter((p) => p.status === "active");
-            case "Inactive":
-                return products.filter((p) => p.status === "inactive");
-            case "Low Stock":
-                return products.filter((p) => p.stock > 0 && p.stock <= 10);
-            case "Out of Stock":
-                return products.filter((p) => p.stock === 0);
-            case "All Products":
-            default:
-                return products;
-        }
-    };
-
-    const filteredProducts = filterProductsByStatus(products, status);
-
     const deleteProduct = async (id: number | undefined) => {
         if (!id) {
             toast.error("Product ID is missing!");
             return;
         }
-        const toastId = toast.loading("Deleting...");
         try {
             await deleteProductById(String(id));
-            toast.success("Product Deleted!");
             setShowConfirmationModal(false);
-            fetchProducts(page);
+            fetchProducts(page, status);
         } catch (error) {
-            toast.error("Product deletion failed!");
-        } finally {
-            toast.dismiss(toastId);
+            // toast.error("Product deletion failed!");
         }
     };
 
@@ -193,30 +179,30 @@ const Products = () => {
                     borderRadius: "6px",
                 }}
             >
-                {statusOptions?.map((option) => (
+                {statusOptions.map(({ label, value }) => (
                     <Button
-                        key={option}
+                        key={label}
                         sx={{
                             textTransform: "none",
                             backgroundColor:
-                                status === option
-                                    ? statusColors[option].bg
+                                status === value
+                                    ? statusColors[label].bg
                                     : "transparent",
                             color:
-                                status === option
-                                    ? statusColors[option].color
+                                status === value
+                                    ? statusColors[label].color
                                     : "inherit",
-                            fontWeight: status === option ? 700 : 400,
+                            fontWeight: status === value ? 700 : 400,
                             borderRadius: 2,
                             "&:hover": {
-                                backgroundColor: statusColors[option].bg,
-                                color: statusColors[option].color,
+                                backgroundColor: statusColors[label].bg,
+                                color: statusColors[label].color,
                             },
                             border: "none",
                         }}
-                        onClick={() => setStatus(option)}
+                        onClick={() => handleStatusChange(value)}
                     >
-                        {option}
+                        {label}
                     </Button>
                 ))}
             </Box>
@@ -254,105 +240,115 @@ const Products = () => {
                         </TableHead>
 
                         <TableBody>
-                            {filteredProducts?.map((product) => (
-                                <StyledTableRow key={product.SKU}>
-                                    <StyledTableCell
-                                        sx={{ color: "blue", fontWeight: 600 }}
-                                    >
-                                        {product.name}
-                                    </StyledTableCell>
-                                    <StyledTableCell>
-                                        {product.SKU}
-                                    </StyledTableCell>
-                                    <StyledTableCell sx={{ fontWeight: 600 }}>
-                                        ${formatNumber(product.price)}
-                                    </StyledTableCell>
-
-                                    <StyledTableCell>
-                                        <Typography
+                            {products.length > 0 ? (
+                                products?.map((product) => (
+                                    <StyledTableRow key={product.SKU}>
+                                        <StyledTableCell
                                             sx={{
-                                                display: "inline-block",
-                                                color:
-                                                    product.stock === 0
-                                                        ? "#c62828"
-                                                        : product.stock <= 10
-                                                        ? "#f57c00"
-                                                        : "#2c7f6f",
-                                                fontWeight: 600,
-                                                fontSize: "0.95em",
-                                            }}
-                                        >
-                                            {displayStock(product.stock)}
-                                        </Typography>
-                                    </StyledTableCell>
-
-                                    <StyledTableCell align="right">
-                                        <Typography
-                                            sx={{
-                                                px: 1.5,
-                                                py: 0.5,
-                                                borderRadius: 2,
-                                                backgroundColor:
-                                                    product.status === "active"
-                                                        ? "lightgreen"
-                                                        : "#f8d7da",
-                                                color:
-                                                    product.status === "active"
-                                                        ? "green"
-                                                        : "red",
-                                                fontWeight: 600,
-                                                fontSize: "0.95em",
-                                                display: "inline-block",
-                                            }}
-                                        >
-                                            {product.status === "active"
-                                                ? "Active"
-                                                : "Inactive"}
-                                        </Typography>
-                                    </StyledTableCell>
-
-                                    <StyledTableCell align="right">
-                                        <Button
-                                            component={RouterLink}
-                                            to={`/products/${product.id}`}
-                                            sx={{
-                                                color: "green",
-                                                textTransform: "none",
-                                                fontWeight: 600,
-                                            }}
-                                        >
-                                            View
-                                        </Button>
-                                        <Button
-                                            component={RouterLink}
-                                            to={`/product/edit/${product.id}`}
-                                            sx={{
-                                                textTransform: "none",
                                                 color: "blue",
                                                 fontWeight: 600,
                                             }}
                                         >
-                                            Edit
-                                        </Button>
-                                        <Button
-                                            size="small"
-                                            sx={{
-                                                textTransform: "none",
-                                                color: "red",
-                                                fontWeight: 600,
-                                            }}
-                                            onClick={() => {
-                                                setShowConfirmationModal(true);
-                                                setId(product.id);
-                                            }}
+                                            {product.name}
+                                        </StyledTableCell>
+                                        <StyledTableCell>
+                                            {product.SKU}
+                                        </StyledTableCell>
+                                        <StyledTableCell
+                                            sx={{ fontWeight: 600 }}
                                         >
-                                            Delete
-                                        </Button>
-                                    </StyledTableCell>
-                                </StyledTableRow>
-                            ))}
+                                            ${formatNumber(product.price)}
+                                        </StyledTableCell>
 
-                            {filteredProducts.length === 0 && (
+                                        <StyledTableCell>
+                                            <Typography
+                                                sx={{
+                                                    display: "inline-block",
+                                                    color:
+                                                        product.stock === 0
+                                                            ? "#c62828"
+                                                            : product.stock <=
+                                                              10
+                                                            ? "#f57c00"
+                                                            : "#2c7f6f",
+                                                    fontWeight: 600,
+                                                    fontSize: "0.95em",
+                                                }}
+                                            >
+                                                {displayStock(product.stock)}
+                                            </Typography>
+                                        </StyledTableCell>
+
+                                        <StyledTableCell align="right">
+                                            <Typography
+                                                sx={{
+                                                    px: 1.5,
+                                                    py: 0.5,
+                                                    borderRadius: 2,
+                                                    backgroundColor:
+                                                        product.status ===
+                                                        "active"
+                                                            ? "lightgreen"
+                                                            : "#f8d7da",
+                                                    color:
+                                                        product.status ===
+                                                        "active"
+                                                            ? "green"
+                                                            : "red",
+                                                    fontWeight: 600,
+                                                    fontSize: "0.95em",
+                                                    display: "inline-block",
+                                                }}
+                                            >
+                                                {product.status === "active"
+                                                    ? "Active"
+                                                    : "Inactive"}
+                                            </Typography>
+                                        </StyledTableCell>
+
+                                        <StyledTableCell align="right">
+                                            <Button
+                                                component={RouterLink}
+                                                to={`/products/${product.id}`}
+                                                sx={{
+                                                    color: "green",
+                                                    textTransform: "none",
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                View
+                                            </Button>
+                                            <Button
+                                                component={RouterLink}
+                                                to={`/product/edit/${product.id}`}
+                                                sx={{
+                                                    textTransform: "none",
+                                                    color: "blue",
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                Edit
+                                            </Button>
+                                            <Button
+                                                size="small"
+                                                sx={{
+                                                    textTransform: "none",
+                                                    color: "red",
+                                                    fontWeight: 600,
+                                                }}
+                                                onClick={() => {
+                                                    setShowConfirmationModal(
+                                                        true
+                                                    );
+                                                    setId(product.id);
+                                                }}
+                                            >
+                                                Delete
+                                            </Button>
+                                        </StyledTableCell>
+                                    </StyledTableRow>
+                                ))
+                            ) : (
                                 <TableRow>
                                     <StyledTableCell colSpan={6} align="center">
                                         No products found.
@@ -364,23 +360,25 @@ const Products = () => {
                 </TableContainer>
             </Box>
 
-            <Box
-                sx={{
-                    maxWidth: "80%",
-                    margin: "auto",
-                    display: "flex",
-                    justifyContent: "center",
-                    mt: 2,
-                }}
-            >
-                <Pagination
-                    count={totalPages}
-                    page={page}
-                    onChange={handlePageChange}
-                    color="primary"
-                    shape="rounded"
-                />
-            </Box>
+            {products.length > 0 && (
+                <Box
+                    sx={{
+                        maxWidth: "80%",
+                        margin: "auto",
+                        display: "flex",
+                        justifyContent: "center",
+                        mt: 2,
+                    }}
+                >
+                    <Pagination
+                        count={totalPages}
+                        page={page}
+                        onChange={handlePageChange}
+                        color="primary"
+                        shape="rounded"
+                    />
+                </Box>
+            )}
 
             {showConfirmationModal && (
                 <ConfirmationModal

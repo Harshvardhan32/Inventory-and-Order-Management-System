@@ -20,7 +20,8 @@ export const getAccessToken = (): string => {
 
 export const getAllProduct = async (
     page = 1,
-    all = false
+    all = false,
+    status?: string
 ): Promise<{
     count: number;
     next: string | null;
@@ -30,9 +31,15 @@ export const getAllProduct = async (
     try {
         const token = getAccessToken();
 
-        const url = all
+        let url = all
             ? `${API_BASE_URL}/products/?all=true`
             : `${API_BASE_URL}/products/?page=${page}`;
+
+        if (status) {
+            url += all
+                ? `&status=${encodeURIComponent(status)}`
+                : `&status=${encodeURIComponent(status)}`;
+        }
 
         const response = await apiConnector("GET", url, undefined, {
             "Content-Type": "application/json",
@@ -164,6 +171,8 @@ export const updateProduct = async (
 };
 
 export const deleteProductById = async (id: string) => {
+    const toastId = toast.loading("Deleting...");
+
     try {
         const token = getAccessToken();
         const response = await apiConnector(
@@ -179,8 +188,11 @@ export const deleteProductById = async (id: string) => {
         if (response.status !== 204 && response.status !== 200) {
             throw new Error("Product deletion failed!");
         }
+        toast.success("Product deleted successfully!");
     } catch (error: any) {
         console.error("Delete product error:", error);
         toast.error("Product deletion failed!");
+    } finally {
+        toast.dismiss(toastId);
     }
 };

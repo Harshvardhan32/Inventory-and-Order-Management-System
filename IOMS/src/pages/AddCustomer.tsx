@@ -86,22 +86,15 @@ export default function AddCustomer() {
             address: formData.address,
         };
 
-        let toastId;
         try {
-            toastId = toast.loading(isEdit ? "Updating..." : "Creating...");
-
             if (isEdit && id) {
                 await updateCustomer(id, data, navigate);
-                toast.success("Customer Updated!");
             } else {
                 await createCustomer(data, navigate);
-                toast.success("Customer Created!");
             }
         } catch (error) {
             console.error("Error saving customer:", error);
             toast.error("Something went wrong");
-        } finally {
-            toast.dismiss(toastId);
         }
     };
 
